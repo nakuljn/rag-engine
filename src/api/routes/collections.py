@@ -1,11 +1,15 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from api.api_constants import *
-from models.api_models import CreateCollectionRequest, ApiResponse, LinkContentItem, LinkContentResponse, QueryRequest, QueryResponse, UnlinkContentResponse
+from models.api_models import CreateCollectionRequest, ApiResponse, ApiResponseWithBody, LinkContentItem, LinkContentResponse, QueryRequest, QueryResponse, UnlinkContentResponse
 from services.collection_service import CollectionService
 
 router = APIRouter()
 collection_service = CollectionService()
+
+@router.get("/collections")
+def list_collections() -> ApiResponseWithBody:
+    return collection_service.list_collections()
 
 @router.get(COLLECTIONS_BASE + "/{collection_name}")
 def get_collection(collection_name: str) -> ApiResponse:

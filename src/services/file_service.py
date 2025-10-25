@@ -77,12 +77,39 @@ class FileService:
     def get_file_content(self, file_id: str) -> Optional[str]:
         file_path = self.get_file_path(file_id)
         if file_path and os.path.exists(file_path):
+            file_extension = os.path.splitext(file_path)[1].lower()
+
+            if file_extension == ".pdf":
+                return self._extract_pdf_text(file_path)
+            else:
+                return self._extract_text_file(file_path)
+        return None
+
+    def _extract_pdf_text(self, file_path: str) -> Optional[str]:
+        try:
+            import pdfplumber
+            with pdfplumber.open(file_path) as pdf:
+                text = ""
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+                return text.strip() if text.strip() else None
+        except Exception:
+            return None
+
+    def _extract_text_file(self, file_path: str) -> Optional[str]:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except UnicodeDecodeError:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, "r", encoding="latin-1") as f:
                     return f.read()
             except Exception:
                 return None
-        return None
+        except Exception:
+            return None
 
     def delete_file(self, file_id: str) -> bool:
         file_path = self.get_file_path(file_id)

@@ -49,6 +49,7 @@ class RAGGradioUI:
     def __init__(self):
         self.current_files = []
         self.current_collections = []
+        self.chat_history = []
 
     # Utility functions
     def _format_response(self, response: Dict[str, Any]) -> str:
@@ -78,9 +79,18 @@ class RAGGradioUI:
             return pd.DataFrame({"Error": [response["error"]]})
 
     def _update_collection_list(self) -> pd.DataFrame:
-        # Note: We no longer have a list_collections API, so this is just a placeholder
-        # In a real implementation, you might want to keep track of collections locally
-        return pd.DataFrame({"Status": ["Use collection name to check if it exists"]})
+        response = api_client.list_collections()
+        if response["success"]:
+            collections_data = response["data"].get("body", {}).get("collections", [])
+            self.current_collections = collections_data
+
+            if collections_data:
+                df = pd.DataFrame({"Collection Name": collections_data})
+                return df
+            else:
+                return pd.DataFrame({"Message": ["No collections created yet"]})
+        else:
+            return pd.DataFrame({"Error": [response["error"]]})
 
     def _get_file_choices(self) -> List[str]:
         if self.current_files:
@@ -95,6 +105,16 @@ class RAGGradioUI:
             if choice.startswith(file['filename']):
                 return file['file_id']
         return None
+
+    def _get_collection_choices(self) -> List[str]:
+        if self.current_collections:
+            return self.current_collections
+        return ["No collections available"]
+
+    def _get_collection_from_choice(self, choice: str) -> Optional[str]:
+        if not choice or choice == "No collections available":
+            return None
+        return choice
 
     def upload_file(self, file) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown]:
         if file is None:
@@ -136,18 +156,31 @@ class RAGGradioUI:
         updated_choices = self._get_file_choices()
         return updated_df, gr.Dropdown(choices=updated_choices, value=None)
 
-    def create_collection(self, collection_name: str) -> Tuple[str, pd.DataFrame]:
+    def refresh_collections(self) -> Tuple[pd.DataFrame, gr.Dropdown, gr.Dropdown]:
+        updated_df = self._update_collection_list()
+        updated_choices = self._get_collection_choices()
+        return (updated_df,
+                gr.Dropdown(choices=updated_choices, value=None),
+                gr.Dropdown(choices=updated_choices, value=None))
+
+    def create_collection(self, collection_name: str) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown]:
         if not collection_name.strip():
-            return "⚠️ Please enter a collection name", self._update_collection_list()
+            choices = self._get_collection_choices()
+            return ("⚠️ Please enter a collection name", self._update_collection_list(),
+                    gr.Dropdown(choices=choices), gr.Dropdown(choices=choices))
 
         response = api_client.create_collection(collection_name.strip())
         updated_df = self._update_collection_list()
+        updated_choices = self._get_collection_choices()
 
-        return self._format_response(response), updated_df
+        return (self._format_response(response), updated_df,
+                gr.Dropdown(choices=updated_choices, value=None),
+                gr.Dropdown(choices=updated_choices, value=None))
 
-    def link_content(self, collection_name: str, file_choice: str) -> str:
-        if not collection_name.strip():
-            return "⚠️ Please enter a collection name"
+    def link_content(self, collection_choice: str, file_choice: str) -> str:
+        collection_name = self._get_collection_from_choice(collection_choice)
+        if not collection_name:
+            return "⚠️ Please select a collection"
 
         file_id = self._get_file_id_from_choice(file_choice)
         if not file_id:
@@ -170,7 +203,7 @@ class RAGGradioUI:
             "field": "text"  # Default field type
         }]
 
-        response = api_client.link_content(collection_name.strip(), files_to_link)
+        response = api_client.link_content(collection_name, files_to_link)
 
         # Handle 207 multi-status response
         if response["success"] and response["status_code"] == 207:
@@ -190,21 +223,60 @@ class RAGGradioUI:
         else:
             return self._format_response(response)
 
-    def query_collection(self, collection_name: str, query: str) -> str:
-        if not collection_name.strip():
-            return "⚠️ Please enter a collection name"
+    def query_collection(self, collection_choice: str, query: str) -> str:
+        collection_name = self._get_collection_from_choice(collection_choice)
+        if not collection_name:
+            return "⚠️ Please select a collection"
 
         if not query.strip():
             return "⚠️ Please enter a search query"
 
-        response = api_client.query_collection(collection_name.strip(), query.strip())
+        response = api_client.query_collection(collection_name, query.strip())
 
         if response["success"]:
             data = response.get("data", {})
-            query_result = data.get("query_result", "No results")
-            return f"🔍 Query Results:\n{query_result}"
+            answer = data.get("answer", "No answer")
+            confidence = data.get("confidence", 0.0)
+            is_relevant = data.get("is_relevant", False)
+            chunks = data.get("chunks", [])
+
+            result = f"**Answer:** {answer}\n"
+            result += f"**Confidence:** {confidence:.2f}\n"
+            result += f"**Relevant:** {'Yes' if is_relevant else 'No'}\n"
+            if chunks:
+                result += f"**Sources:** {len(chunks)} document(s)"
+
+            return result
         else:
             return self._format_response(response)
+
+    def chat_with_collection(self, collection_choice: str, message: str, history: List) -> Tuple[List, str]:
+        if history is None:
+            history = []
+
+        if not message.strip():
+            return history, ""
+
+        collection_name = self._get_collection_from_choice(collection_choice)
+        if not collection_name:
+            history.append(["❌ Please select a collection first", ""])
+            return history, ""
+
+        history.append([message, ""])
+
+        response = api_client.query_collection(collection_name, message.strip())
+
+        if response["success"]:
+            data = response.get("data", {})
+            answer = data.get("answer", "No answer")
+            history[-1][1] = answer
+        else:
+            history[-1][1] = f"❌ {response.get('error', 'Unknown error')}"
+
+        return history, ""
+
+    def clear_chat(self) -> List:
+        return []
 
     def create_interface(self) -> gr.Blocks:
         with gr.Blocks(css=custom_css, title="RAG Engine", theme=gr.themes.Default()) as demo:
@@ -277,9 +349,10 @@ class RAGGradioUI:
                     with gr.Row():
                         with gr.Column():
                             gr.Markdown("### Link Content")
-                            link_collection_name = gr.Textbox(
-                                label="Collection Name",
-                                placeholder="Enter collection name to link content..."
+                            link_collection_dropdown = gr.Dropdown(
+                                label="Select Collection",
+                                choices=[],
+                                interactive=True
                             )
                             link_file_selector = gr.Dropdown(
                                 label="Select File to Link",
@@ -289,24 +362,36 @@ class RAGGradioUI:
                             link_btn = gr.Button("🔗 Link Content", variant="secondary", size="sm")
                             link_status = gr.Textbox(label="Link Status", interactive=False, lines=1)
 
+                # Tab 3: Chatbot
+                with gr.Tab("💬 Chatbot"):
+                    with gr.Row():
                         with gr.Column():
-                            gr.Markdown("### Query Collection")
-                            query_collection_name = gr.Textbox(
-                                label="Collection Name",
-                                placeholder="Enter collection name to query..."
+                            gr.Markdown("### RAG-based Chat")
+                            chat_collection_dropdown = gr.Dropdown(
+                                label="Select Collection",
+                                choices=[],
+                                interactive=True
                             )
-                            query_input = gr.Textbox(
-                                label="Search Query",
-                                placeholder="Enter your search query...",
-                                lines=2
+
+                    with gr.Row():
+                        chatbot = gr.Chatbot(
+                            label="Chat with your documents",
+                            height=400,
+                            show_label=True,
+                            value=[]
+                        )
+
+                    with gr.Row():
+                        with gr.Column(scale=4):
+                            chat_input = gr.Textbox(
+                                label="Message",
+                                placeholder="Ask a question about your documents...",
+                                lines=1,
+                                max_lines=3
                             )
-                            query_btn = gr.Button("🔍 Query", variant="secondary", size="sm")
-                            query_results = gr.Textbox(
-                                label="Query Results",
-                                interactive=False,
-                                lines=5,
-                                placeholder="Query results will appear here..."
-                            )
+                        with gr.Column(scale=1):
+                            chat_send_btn = gr.Button("Send", variant="primary", size="sm")
+                            clear_chat_btn = gr.Button("Clear Chat", variant="secondary", size="sm")
 
             # Event handlers for File Management
             upload_btn.click(
@@ -332,39 +417,55 @@ class RAGGradioUI:
             create_collection_btn.click(
                 fn=self.create_collection,
                 inputs=[collection_name],
-                outputs=[collection_status, collections_table],
+                outputs=[collection_status, collections_table, link_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 
             link_btn.click(
                 fn=self.link_content,
-                inputs=[link_collection_name, link_file_selector],
+                inputs=[link_collection_dropdown, link_file_selector],
                 outputs=[link_status],
                 queue=False
             )
 
-            query_btn.click(
-                fn=self.query_collection,
-                inputs=[query_collection_name, query_input],
-                outputs=[query_results],
+            refresh_collections_btn.click(
+                fn=self.refresh_collections,
+                outputs=[collections_table, link_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 
-            refresh_collections_btn.click(
-                fn=self._update_collection_list,
-                outputs=[collections_table],
+            chat_send_btn.click(
+                fn=self.chat_with_collection,
+                inputs=[chat_collection_dropdown, chat_input],
+                outputs=[chatbot, chat_input],
+                queue=False
+            )
+
+            chat_input.submit(
+                fn=self.chat_with_collection,
+                inputs=[chat_collection_dropdown, chat_input],
+                outputs=[chatbot, chat_input],
+                queue=False
+            )
+
+            clear_chat_btn.click(
+                fn=self.clear_chat,
+                outputs=[chatbot],
                 queue=False
             )
 
             # Initialize with current data on load
             def initialize_data():
                 files_df, file_choices = self.refresh_files()
-                collections_df = self._update_collection_list()
-                return files_df, file_choices, collections_df, gr.Dropdown(choices=self._get_file_choices())
+                collections_df, link_dropdown, chat_dropdown = self.refresh_collections()
+                return (files_df, file_choices, collections_df,
+                        gr.Dropdown(choices=self._get_file_choices()),
+                        link_dropdown, chat_dropdown)
 
             demo.load(
                 fn=initialize_data,
-                outputs=[files_table, file_selector, collections_table, link_file_selector],
+                outputs=[files_table, file_selector, collections_table, link_file_selector,
+                        link_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 

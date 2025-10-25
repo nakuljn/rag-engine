@@ -83,8 +83,8 @@ class CollectionService:
     def _create_link_error_response(self, file_item: LinkContentItem, status_code: int, message: str) -> LinkContentResponse:
         return LinkContentResponse(
             name=file_item.name,
-            id=file_item.file_id,
-            field=file_item.type,
+            file_id=file_item.file_id,
+            type=file_item.type,
             created_at=None,
             indexing_status="INDEXING_FAILED",
             status_code=status_code,
@@ -94,8 +94,8 @@ class CollectionService:
     def _create_link_success_response(self, file_item: LinkContentItem) -> LinkContentResponse:
         return LinkContentResponse(
             name=file_item.name,
-            id=file_item.file_id,
-            field=file_item.type,
+            file_id=file_item.file_id,
+            type=file_item.type,
             created_at=datetime.now().isoformat(),
             indexing_status="INDEXING_SUCCESS",
             status_code=200,
@@ -183,14 +183,18 @@ class CollectionService:
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info=f"Collection '{collection_name}' does not exist"
+                missing_info=f"Collection '{collection_name}' does not exist",
+                is_relevant=False,
+                chunks=[]
             )
 
         if not query_text.strip():
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info="Empty query provided"
+                missing_info="Empty query provided",
+                is_relevant=False,
+                chunks=[]
             )
 
         return self.query_service.search(collection_name, query_text, limit)

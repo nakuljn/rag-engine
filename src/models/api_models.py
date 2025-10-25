@@ -38,6 +38,10 @@ class LinkContentResponse(BaseModel):
     status_code: int
     message: Optional[str] = None
 
+class ChunkConfig(BaseModel):
+    source: str
+    text: str
+
 class QueryRequest(BaseModel):
     query: str
 
@@ -45,6 +49,8 @@ class QueryResponse(BaseModel):
     answer: str
     confidence: float
     missing_info: str
+    is_relevant: bool
+    chunks: List[ChunkConfig]
 
 class FileUploadResponse(BaseModel):
     status: str

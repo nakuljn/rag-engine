@@ -17,6 +17,17 @@ class EmbeddingConfig:
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "512"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "50"))
 
+class LlmConfig:
+    PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MAX_TOKENS: int = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
+    OPENAI_TEMPERATURE: float = float(os.getenv("OPENAI_TEMPERATURE", "0.1"))
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    GEMINI_MAX_TOKENS: int = int(os.getenv("GEMINI_MAX_TOKENS", "1000"))
+    GEMINI_TEMPERATURE: float = float(os.getenv("GEMINI_TEMPERATURE", "0.1"))
+
 class AppConfig:
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -28,4 +39,5 @@ class AppConfig:
 class Config:
     database = DatabaseConfig()
     embedding = EmbeddingConfig()
+    llm = LlmConfig()
     app = AppConfig()
