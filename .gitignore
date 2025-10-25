@@ -3,6 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Qdrant database storage
+qdrant_data/
+qdrant/
+
+# File uploads directory
+uploads/
+
 # C extensions
 *.so
 

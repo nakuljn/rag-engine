@@ -24,23 +24,25 @@ class ApiResponseWithBody(BaseModel):
     message: str
     body: Dict[str, Any]
 
-class LinkContentRequest(BaseModel):
-    pass
+class LinkContentItem(BaseModel):
+    name: str
+    id: str
+    field: str
 
-class UnlinkContentRequest(BaseModel):
-    pass
+class LinkContentResponse(BaseModel):
+    name: str
+    id: str
+    field: str
+    created_at: Optional[str] = None
+    indexing_status: str
+    status_code: int
+    message: Optional[str] = None
 
 class QueryRequest(BaseModel):
-    pass
+    query: str
 
 class QueryResponse(BaseModel):
     query_result: str
-
-class BatchReadRequest(BaseModel):
-    pass
-
-class BatchReadResponse(BaseModel):
-    files_status: str
 
 class CreateConfigRequest(BaseModel):
     pass
