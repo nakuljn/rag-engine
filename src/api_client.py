@@ -59,6 +59,10 @@ class RAGAPIClient:
         return self._make_request("DELETE", f"/files/{file_id}")
 
     # Collection Management APIs
+    def list_collections(self) -> Dict[str, Any]:
+        """List all collections"""
+        return self._make_request("GET", "/collections")
+
     def get_collection(self, collection_name: str) -> Dict[str, Any]:
         """Check if a specific collection exists"""
         return self._make_request("GET", f"/collection/{collection_name}")
