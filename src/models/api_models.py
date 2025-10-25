@@ -44,6 +44,16 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     query_result: str
 
+class FileUploadResponse(BaseModel):
+    status: str
+    message: str
+    body: Dict[str, str]
+
+class UnlinkContentResponse(BaseModel):
+    file_id: str
+    status_code: int
+    message: str
+
 class CreateConfigRequest(BaseModel):
     pass
 
