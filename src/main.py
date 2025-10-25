@@ -14,7 +14,12 @@ app.include_router(files.router, prefix="/api/v1", tags=["files"])
 
 @app.get("/")
 def read_root():
-    return {"message": "RAG Engine API", "version": "1.0.0"}
+    return {
+        "message": "RAG Engine API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "gradio_ui": "http://localhost:7860"
+    }
 
 if __name__ == "__main__":
     import uvicorn
