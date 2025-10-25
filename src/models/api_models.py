@@ -19,6 +19,11 @@ class ApiResponse(BaseModel):
     status: str
     message: str
 
+class ApiResponseWithBody(BaseModel):
+    status: str
+    message: str
+    body: Dict[str, Any]
+
 class LinkContentRequest(BaseModel):
     pass
 
@@ -44,14 +49,3 @@ class CreateConfigResponse(BaseModel):
     message: str
     config_id: str
 
-class FileUploadRequest(BaseModel):
-    name: str
-    type: str
-    uploaded_at: datetime
-    metadata: Optional[Dict[str, Any]] = None
-
-class FileUpdateRequest(BaseModel):
-    name: str
-    type: str
-    uploaded_at: datetime
-    metadata: Optional[Dict[str, Any]] = None
