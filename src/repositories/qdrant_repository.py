@@ -2,7 +2,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct, Filter, FieldCondition
 from typing import List, Dict, Any, Optional
 import uuid
-from ..config import Config
+from config import Config
 
 class QdrantRepository:
     def __init__(self):
@@ -48,16 +48,6 @@ class QdrantRepository:
         except Exception:
             return []
 
-    def get_collection_status(self, collection_name: str) -> Dict[str, Any]:
-        try:
-            info = self.client.get_collection(collection_name)
-            return {
-                "status": info.status.name,
-                "points_count": info.points_count,
-                "vectors_count": info.vectors_count
-            }
-        except Exception:
-            return {"status": "not_found"}
 
     def link_content(self, collection_name: str, documents: List[Dict[str, Any]]) -> bool:
         try:

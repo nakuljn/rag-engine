@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer
 from typing import List
-from ..config import Config
+from config import Config
 
 class EmbeddingClient:
     def __init__(self):

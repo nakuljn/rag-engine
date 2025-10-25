@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
-from ..api_constants import *
+from api.api_constants import *
 from models.api_models import ApiResponse, ApiResponseWithBody
 from services.file_service import FileService
 
@@ -25,7 +25,12 @@ def upload_file(file: UploadFile = File(...)):
 
 @router.get(FILES_BASE)
 def list_files():
-    return ApiResponse(status="SUCCESS", message="Files retrieved successfully")
+    files = file_service.list_files()
+    return ApiResponseWithBody(
+        status="SUCCESS",
+        message="Files retrieved successfully",
+        body={"files": files}
+    )
 
 @router.get(FILES_BASE + "/{file_id}")
 def get_file(file_id: str):
@@ -34,9 +39,6 @@ def get_file(file_id: str):
     else:
         return ApiResponse(status="FAILURE", message="File not found")
 
-@router.put(FILES_BASE + "/{file_id}")
-def update_file(file_id: str):
-    raise HTTPException(status_code=503, detail="Not implemented")
 
 @router.delete(FILES_BASE + "/{file_id}")
 def delete_file(file_id: str):
