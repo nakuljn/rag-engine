@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.routes import collections, config
+from api.routes import collections, config, files
 
 app = FastAPI(
     title="RAG Engine API",
@@ -10,6 +10,7 @@ app = FastAPI(
 # Include routers
 app.include_router(collections.router, prefix="/api/v1", tags=["collections"])
 app.include_router(config.router, prefix="/api/v1", tags=["config"])
+app.include_router(files.router, prefix="/api/v1", tags=["files"])
 
 @app.get("/")
 def read_root():

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
+from datetime import datetime
 
 class RagConfig(BaseModel):
     name: str
@@ -42,3 +43,15 @@ class CreateConfigRequest(BaseModel):
 class CreateConfigResponse(BaseModel):
     message: str
     config_id: str
+
+class FileUploadRequest(BaseModel):
+    name: str
+    type: str
+    uploaded_at: datetime
+    metadata: Optional[Dict[str, Any]] = None
+
+class FileUpdateRequest(BaseModel):
+    name: str
+    type: str
+    uploaded_at: datetime
+    metadata: Optional[Dict[str, Any]] = None
