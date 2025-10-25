@@ -1,34 +1,25 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
-import uuid
-import os
 from ..api_constants import *
 from models.api_models import ApiResponse, ApiResponseWithBody
+from services.file_service import FileService
 
 router = APIRouter()
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+file_service = FileService()
 
 @router.post(FILES_BASE)
 def upload_file(file: UploadFile = File(...)):
-    try:
-        file_id = str(uuid.uuid4())
-        file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
-
-        with open(file_path, "wb") as buffer:
-            content = file.file.read()
-            buffer.write(content)
-
+    result = file_service.upload_file(file)
+    if result["success"]:
         return ApiResponseWithBody(
             status="SUCCESS",
             message="File uploaded successfully",
-            body={"file_id": file_id}
+            body={"file_id": result["file_id"]}
         )
-    except Exception:
+    else:
         return ApiResponseWithBody(
             status="FAILURE",
-            message="File upload failed",
+            message=result["error"],
             body={}
         )
 
@@ -38,7 +29,10 @@ def list_files():
 
 @router.get(FILES_BASE + "/{file_id}")
 def get_file(file_id: str):
-    return ApiResponse(status="SUCCESS", message=f"File '{file_id}' retrieved successfully")
+    if file_service.file_exists(file_id):
+        return ApiResponse(status="SUCCESS", message=f"File '{file_id}' retrieved successfully")
+    else:
+        return ApiResponse(status="FAILURE", message="File not found")
 
 @router.put(FILES_BASE + "/{file_id}")
 def update_file(file_id: str):
@@ -46,4 +40,8 @@ def update_file(file_id: str):
 
 @router.delete(FILES_BASE + "/{file_id}")
 def delete_file(file_id: str):
-    return ApiResponse(status="SUCCESS", message=f"File '{file_id}' deleted successfully")
+    success = file_service.delete_file(file_id)
+    if success:
+        return ApiResponse(status="SUCCESS", message=f"File '{file_id}' deleted successfully")
+    else:
+        return ApiResponse(status="FAILURE", message="File not found or could not be deleted")
