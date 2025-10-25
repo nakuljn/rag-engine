@@ -4,6 +4,7 @@ import uuid
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+from models.api_models import FileUploadResponse, ApiResponse, ApiResponseWithBody
 
 class FileService:
     def __init__(self):
@@ -27,7 +28,7 @@ class FileService:
         except Exception:
             pass
 
-    def upload_file(self, file: UploadFile) -> Dict[str, Any]:
+    def upload_file(self, file: UploadFile) -> FileUploadResponse:
         try:
             file_id = str(uuid.uuid4())
             file_path = os.path.join(self.upload_dir, f"{file_id}_{file.filename}")
@@ -47,17 +48,17 @@ class FileService:
             }
             self._save_metadata(metadata)
 
-            return {
-                "success": True,
-                "file_id": file_id,
-                "file_path": file_path,
-                "original_name": file.filename
-            }
+            return FileUploadResponse(
+                status="SUCCESS",
+                message="File uploaded successfully",
+                body={"file_id": file_id}
+            )
         except Exception:
-            return {
-                "success": False,
-                "error": "File upload failed"
-            }
+            return FileUploadResponse(
+                status="FAILURE",
+                message="File upload failed",
+                body={}
+            )
 
     def file_exists(self, file_id: str) -> bool:
         files = os.listdir(self.upload_dir)
@@ -100,6 +101,5 @@ class FileService:
         return False
 
     def list_files(self) -> List[Dict[str, Any]]:
-        """Get all file metadata"""
         metadata = self._load_metadata()
         return list(metadata.values())
