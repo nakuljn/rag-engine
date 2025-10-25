@@ -1,24 +1,25 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from ..api_constants import *
+from models.api_models import CreateCollectionRequest, ApiResponse
 
 router = APIRouter()
 
 @router.get(COLLECTIONS_BASE)
 def get_collections():
-    return {"collections": []}
+    return ApiResponse(status="SUCCESS", message="Collections retrieved successfully")
 
 @router.post(COLLECTIONS_BASE)
-def create_collection():
-    return {"message": "Collection created", "collection_id": "placeholder"}
+def create_collection(request: CreateCollectionRequest):
+    return ApiResponse(status="SUCCESS", message="Collection created successfully")
 
 @router.delete(COLLECTIONS_BASE + "/{collection_name}")
 def delete_collection(collection_name: str):
-    return {"message": f"Collection '{collection_name}' deleted"}
+    return ApiResponse(status="SUCCESS", message=f"Collection '{collection_name}' deleted")
 
 @router.post(COLLECTION_STATUS)
 def get_collection_status():
-    return {"status": "placeholder"}
+    return ApiResponse(status="SUCCESS", message="Collection status retrieved")
 
 @router.post("/{collection_name}" + LINK_CONTENT)
 def link_content(collection_name: str):
