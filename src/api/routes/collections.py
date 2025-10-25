@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from api.api_constants import *
-from models.api_models import CreateCollectionRequest, ApiResponse, LinkContentItem, LinkContentResponse, QueryResponse, UnlinkContentResponse
+from models.api_models import CreateCollectionRequest, ApiResponse, LinkContentItem, LinkContentResponse, QueryRequest, QueryResponse, UnlinkContentResponse
 from services.collection_service import CollectionService
 
 router = APIRouter()
@@ -33,6 +33,6 @@ def unlink_content(collection_name: str, file_ids: List[str]) -> List[UnlinkCont
     return collection_service.unlink_content(collection_name, file_ids)
 
 @router.post("/{collection_name}" + QUERY_COLLECTION)
-def query_collection(collection_name: str, query: str = "") -> QueryResponse:
-    return collection_service.query_collection(collection_name, query)
+def query_collection(collection_name: str, request: QueryRequest) -> QueryResponse:
+    return collection_service.query_collection(collection_name, request.query)
 

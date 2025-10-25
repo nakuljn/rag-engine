@@ -26,13 +26,13 @@ class ApiResponseWithBody(BaseModel):
 
 class LinkContentItem(BaseModel):
     name: str
-    id: str
-    field: str
+    file_id: str
+    type: str
 
 class LinkContentResponse(BaseModel):
     name: str
-    id: str
-    field: str
+    file_id: str
+    type: str
     created_at: Optional[str] = None
     indexing_status: str
     status_code: int
@@ -42,7 +42,9 @@ class QueryRequest(BaseModel):
     query: str
 
 class QueryResponse(BaseModel):
-    query_result: str
+    answer: str
+    confidence: float
+    missing_info: str
 
 class FileUploadResponse(BaseModel):
     status: str

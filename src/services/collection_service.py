@@ -3,6 +3,7 @@ from datetime import datetime
 from repositories.qdrant_repository import QdrantRepository
 from utils.embedding_client import EmbeddingClient
 from services.file_service import FileService
+from services.query_service import QueryService
 from models.api_models import LinkContentItem, LinkContentResponse, ApiResponse, ApiResponseWithBody, QueryResponse, UnlinkContentResponse
 
 class CollectionService:
@@ -10,6 +11,7 @@ class CollectionService:
         self.qdrant_repo = QdrantRepository()
         self.embedding_client = EmbeddingClient()
         self.file_service = FileService()
+        self.query_service = QueryService()
 
     def create_collection(self, name: str, rag_config: Optional[Dict] = None, indexing_config: Optional[Dict] = None) -> ApiResponse:
         try:
@@ -81,8 +83,8 @@ class CollectionService:
     def _create_link_error_response(self, file_item: LinkContentItem, status_code: int, message: str) -> LinkContentResponse:
         return LinkContentResponse(
             name=file_item.name,
-            id=file_item.id,
-            field=file_item.field,
+            id=file_item.file_id,
+            field=file_item.type,
             created_at=None,
             indexing_status="INDEXING_FAILED",
             status_code=status_code,
@@ -92,8 +94,8 @@ class CollectionService:
     def _create_link_success_response(self, file_item: LinkContentItem) -> LinkContentResponse:
         return LinkContentResponse(
             name=file_item.name,
-            id=file_item.id,
-            field=file_item.field,
+            id=file_item.file_id,
+            field=file_item.type,
             created_at=datetime.now().isoformat(),
             indexing_status="INDEXING_SUCCESS",
             status_code=200,
@@ -107,6 +109,7 @@ class CollectionService:
             message=message
         )
 
+
     def link_content(self, collection_name: str, files: List[LinkContentItem]) -> List[LinkContentResponse]:
         responses = []
 
@@ -119,21 +122,21 @@ class CollectionService:
 
         for file_item in files:
             try:
-                if not self._validate_file_exists(file_item.id):
+                if not self._validate_file_exists(file_item.file_id):
                     responses.append(self._create_link_error_response(file_item, 404, "File not found"))
                     continue
 
-                if self._check_file_already_linked(collection_name, file_item.id):
+                if self._check_file_already_linked(collection_name, file_item.file_id):
                     responses.append(self._create_link_error_response(file_item, 409, "File already linked, unlink first"))
                     continue
 
-                file_content = self._get_file_content(file_item.id)
+                file_content = self._get_file_content(file_item.file_id)
                 if not file_content:
                     responses.append(self._create_link_error_response(file_item, 500, "Could not read file content"))
                     continue
 
                 documents = self._generate_embedding_and_document(
-                    file_item.id, file_content, file_item.field
+                    file_item.file_id, file_content, file_item.type
                 )
                 if not documents:
                     responses.append(self._create_link_error_response(file_item, 500, "Failed to generate embedding"))
@@ -176,10 +179,19 @@ class CollectionService:
         return responses
 
     def query_collection(self, collection_name: str, query_text: str, limit: int = 5) -> QueryResponse:
-        try:
-            query_vector = self.embedding_client.generate_single_embedding(query_text)
-            results = self.qdrant_repo.query_collection(collection_name, query_vector, limit)
-            return QueryResponse(query_result=str(results))
-        except Exception as e:
-            return QueryResponse(query_result=f"Failed to query collection: {str(e)}")
+        if not self._validate_collection_exists(collection_name):
+            return QueryResponse(
+                answer="Context not found",
+                confidence=0.0,
+                missing_info=f"Collection '{collection_name}' does not exist"
+            )
+
+        if not query_text.strip():
+            return QueryResponse(
+                answer="Context not found",
+                confidence=0.0,
+                missing_info="Empty query provided"
+            )
+
+        return self.query_service.search(collection_name, query_text, limit)
 

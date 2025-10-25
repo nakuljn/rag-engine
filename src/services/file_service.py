@@ -81,8 +81,7 @@ class FileService:
                 with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
             except Exception:
-                with open(file_path, "rb") as f:
-                    return f.read().decode("utf-8", errors="ignore")
+                return None
         return None
 
     def delete_file(self, file_id: str) -> bool:
