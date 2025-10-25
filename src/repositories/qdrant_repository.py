@@ -1,6 +1,5 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct, Filter, FieldCondition
-from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Optional
 import uuid
 from ..config import Config
@@ -12,11 +11,16 @@ class QdrantRepository:
             port=Config.database.QDRANT_PORT,
             timeout=Config.database.QDRANT_TIMEOUT
         )
-        self.model = SentenceTransformer(Config.embedding.MODEL_NAME)
+
+    def collection_exists(self, collection_name: str) -> bool:
+        try:
+            return self.client.collection_exists(collection_name)
+        except Exception:
+            return False
 
     def create_collection(self, collection_name: str) -> bool:
         try:
-            if self.client.collection_exists(collection_name):
+            if self.collection_exists(collection_name):
                 return False
 
             self.client.create_collection(
@@ -60,11 +64,11 @@ class QdrantRepository:
             points = []
             for doc in documents:
                 text = doc.get("text", "")
-                embeddings = self.model.encode([text])[0].tolist()
+                vector = doc.get("vector", [])
 
                 point = PointStruct(
                     id=str(uuid.uuid4()),
-                    vector=embeddings,
+                    vector=vector,
                     payload={
                         "document_id": doc.get("document_id"),
                         "text": text,
@@ -92,10 +96,8 @@ class QdrantRepository:
         except Exception:
             return False
 
-    def query_collection(self, collection_name: str, query_text: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def query_collection(self, collection_name: str, query_vector: List[float], limit: int = 5) -> List[Dict[str, Any]]:
         try:
-            query_vector = self.model.encode([query_text])[0].tolist()
-
             results = self.client.search(
                 collection_name=collection_name,
                 query_vector=query_vector,
