@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
+from datetime import datetime
 
 class RagConfig(BaseModel):
     name: str
@@ -17,6 +18,11 @@ class CreateCollectionRequest(BaseModel):
 class ApiResponse(BaseModel):
     status: str
     message: str
+
+class ApiResponseWithBody(BaseModel):
+    status: str
+    message: str
+    body: Dict[str, Any]
 
 class LinkContentRequest(BaseModel):
     pass
@@ -42,3 +48,4 @@ class CreateConfigRequest(BaseModel):
 class CreateConfigResponse(BaseModel):
     message: str
     config_id: str
+
