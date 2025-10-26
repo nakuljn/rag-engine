@@ -25,12 +25,15 @@ class QueryService:
             return []
 
         chunks = []
+        seen_texts = set()
+
         for result in results:
             payload = result.get("payload", {})
             text = payload.get("text", "")
             source = payload.get("document_id", "unknown")
 
-            if text and self._is_valid_text(text):
+            if text and self._is_valid_text(text) and text not in seen_texts:
+                seen_texts.add(text)
                 trimmed_text = text[:150] + "..." if len(text) > 150 else text
                 chunks.append(ChunkConfig(source=source, text=trimmed_text))
 
@@ -76,7 +79,7 @@ class QueryService:
             chunks=chunks
         )
 
-    def search(self, collection_name: str, query_text: str, limit: int = 5) -> QueryResponse:
+    def search(self, collection_name: str, query_text: str, limit: int = 10) -> QueryResponse:
         try:
             query_vector = self.embedding_client.generate_single_embedding(query_text)
             results = self.qdrant_repo.query_collection(collection_name, query_vector, limit)
