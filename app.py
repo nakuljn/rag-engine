@@ -34,7 +34,7 @@ def start_fastapi_server():
         logger.error(f"Failed to start FastAPI server: {e}")
         raise
 
-def wait_for_api_server(max_retries=30, delay=2):
+def wait_for_api_server(max_retries=20, delay=4):
     import requests
 
     for i in range(max_retries):
@@ -65,15 +65,6 @@ def create_gradio_app():
 
 def main():
     logger.info("🚀 Starting RAG Engine Application...")
-    is_hf_spaces = "SPACE_ID" in os.environ
-
-    if is_hf_spaces:
-        logger.info("🤗 Detected Hugging Face Spaces environment")
-        os.environ["QDRANT_HOST"] = ":memory:"
-        logger.info("Using in-memory Qdrant for HF Spaces deployment")
-    else:
-        logger.info("🏠 Running in local environment")
-
     try:
         logger.info("Starting FastAPI backend thread...")
         api_thread = threading.Thread(

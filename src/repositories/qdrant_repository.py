@@ -43,9 +43,14 @@ class QdrantRepository:
 
     def delete_collection(self, collection_name: str) -> bool:
         try:
+            # Check if collection exists first
+            if not self.collection_exists(collection_name):
+                return False
+
             self.client.delete_collection(collection_name)
             return True
-        except Exception:
+        except Exception as e:
+            print(f"Error deleting collection '{collection_name}': {str(e)}")
             return False
 
     def list_collections(self) -> List[str]:

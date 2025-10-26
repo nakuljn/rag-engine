@@ -51,6 +51,9 @@ class RAGGradioUI:
         self.current_files = []
         self.current_collections = []
         self.chat_history = []
+        self.last_query = None
+        self.last_collection = None
+        self.last_doc_ids = []
 
     # Utility functions
     def _format_response(self, response: Dict[str, Any]) -> str:
@@ -367,6 +370,13 @@ class RAGGradioUI:
 
         if response["success"]:
             data = response.get("data", {})
+
+            # Store data for feedback
+            self.last_query = message.strip()
+            self.last_collection = collection_name
+            chunks = data.get("chunks", [])
+            self.last_doc_ids = [chunk.get("source", "") for chunk in chunks if chunk.get("source")]
+
             if structured_output:
                 if not actual_enable_critic and "critic" in data:
                     data_copy = data.copy()
@@ -379,11 +389,46 @@ class RAGGradioUI:
                 history[-1][1] = answer
         else:
             history[-1][1] = f"❌ {response.get('error', 'Unknown error')}"
+            # Clear feedback data on error
+            self.last_query = None
+            self.last_collection = None
+            self.last_doc_ids = []
 
         return history, ""
 
     def clear_chat(self) -> List:
+        self.last_query = None
+        self.last_collection = None
+        self.last_doc_ids = []
         return []
+
+    def submit_feedback(self, label: int) -> str:
+        if not self.last_query or not self.last_collection or not self.last_doc_ids:
+            return "❌ No recent query to rate"
+
+        try:
+            response = api_client.submit_feedback(
+                self.last_query,
+                self.last_doc_ids,
+                label,
+                self.last_collection
+            )
+            if response["success"]:
+                rating_text = "👍 Good" if label == 1 else "👎 Bad"
+                return f"✅ Feedback submitted: {rating_text}"
+            else:
+                return f"❌ Failed to submit feedback: {response.get('error', 'Unknown error')}"
+        except Exception as e:
+            return f"❌ Error submitting feedback: {str(e)}"
+
+    def rate_good(self) -> str:
+        return self.submit_feedback(1)
+
+    def rate_bad(self) -> str:
+        return self.submit_feedback(0)
+
+    def toggle_feedback_visibility(self, feedback_enabled: bool) -> gr.Row:
+        return gr.Row(visible=feedback_enabled)
 
     def update_critic_toggle_visibility(self, structured_output: bool) -> gr.Checkbox:
         if structured_output:
@@ -527,6 +572,20 @@ class RAGGradioUI:
                                     chat_send_btn = gr.Button("Send", variant="primary", size="sm")
                                     clear_chat_btn = gr.Button("Clear Chat", variant="secondary", size="sm")
 
+                            feedback_row = gr.Row(visible=False)
+                            with feedback_row:
+                                gr.Markdown("**Rate the last answer:**")
+                                with gr.Row():
+                                    good_btn = gr.Button("👍 Good", variant="secondary", size="sm")
+                                    bad_btn = gr.Button("👎 Bad", variant="secondary", size="sm")
+                            feedback_status = gr.Textbox(
+                                label="Feedback Status",
+                                value="",
+                                visible=True,
+                                interactive=False,
+                                max_lines=1
+                            )
+
                         # Right column - Settings panel
                         with gr.Column(scale=1):
                             gr.Markdown("### Chat Settings")
@@ -545,6 +604,11 @@ class RAGGradioUI:
                                 value=True,
                                 visible=True,
                                 info="AI evaluates answer quality and suggests improvements"
+                            )
+                            feedback_toggle = gr.Checkbox(
+                                label="Enable Feedback Learning",
+                                value=False,
+                                info="Rate answers to improve future results"
                             )
 
             # Event handlers for File Management
@@ -619,6 +683,25 @@ class RAGGradioUI:
                 fn=self.update_critic_toggle_visibility,
                 inputs=[structured_output_toggle],
                 outputs=[critic_toggle],
+                queue=False
+            )
+
+            feedback_toggle.change(
+                fn=self.toggle_feedback_visibility,
+                inputs=[feedback_toggle],
+                outputs=[feedback_row],
+                queue=False
+            )
+
+            good_btn.click(
+                fn=self.rate_good,
+                outputs=[feedback_status],
+                queue=False
+            )
+
+            bad_btn.click(
+                fn=self.rate_bad,
+                outputs=[feedback_status],
                 queue=False
             )
 

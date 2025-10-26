@@ -75,3 +75,13 @@ class CreateConfigResponse(BaseModel):
     message: str
     config_id: str
 
+class FeedbackRequest(BaseModel):
+    query: str
+    doc_ids: List[str]
+    label: int
+    collection: str
+
+class FeedbackResponse(BaseModel):
+    status: str
+    message: str
+

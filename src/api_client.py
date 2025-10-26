@@ -90,5 +90,14 @@ class RAGAPIClient:
         data = {"query": query, "enable_critic": enable_critic}
         return self._make_request("POST", f"/{collection_name}/query", json=data)
 
+    def submit_feedback(self, query: str, doc_ids: List[str], label: int, collection: str) -> Dict[str, Any]:
+        data = {
+            "query": query,
+            "doc_ids": doc_ids,
+            "label": label,
+            "collection": collection
+        }
+        return self._make_request("POST", "/feedback", json=data)
+
 
 api_client = RAGAPIClient()

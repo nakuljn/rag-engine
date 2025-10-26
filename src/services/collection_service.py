@@ -25,11 +25,15 @@ class CollectionService:
 
     def delete_collection(self, name: str) -> ApiResponse:
         try:
+            # Check if collection exists first
+            if not self.qdrant_repo.collection_exists(name):
+                return ApiResponse(status="FAILURE", message=f"Collection '{name}' does not exist")
+
             success = self.qdrant_repo.delete_collection(name)
             if success:
                 return ApiResponse(status="SUCCESS", message=f"Collection '{name}' deleted successfully")
             else:
-                return ApiResponse(status="FAILURE", message=f"Failed to delete collection '{name}'")
+                return ApiResponse(status="FAILURE", message=f"Failed to delete collection '{name}' - check server logs for details")
         except Exception as e:
             return ApiResponse(status="FAILURE", message=f"Failed to delete collection: {str(e)}")
 

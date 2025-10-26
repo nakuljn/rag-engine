@@ -48,6 +48,10 @@ class CriticConfig:
     CRITIC_MODEL_API_KEY: str = os.getenv("CRITIC_MODEL_API_KEY", "")
     CRITIC_MODEL_TEMPERATURE: float = float(os.getenv("CRITIC_MODEL_TEMPERATURE", "0.1"))
 
+class FeedbackConfig:
+    FEEDBACK_ENABLED: bool = os.getenv("FEEDBACK_ENABLED", "true").lower() == "true"
+    FEEDBACK_SIMILARITY_THRESHOLD: float = float(os.getenv("FEEDBACK_SIMILARITY_THRESHOLD", "0.8"))
+
 class Config:
     database = DatabaseConfig()
     embedding = EmbeddingConfig()
@@ -55,3 +59,4 @@ class Config:
     app = AppConfig()
     reranking = RerankingConfig()
     critic = CriticConfig()
+    feedback = FeedbackConfig()
