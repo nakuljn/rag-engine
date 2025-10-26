@@ -73,10 +73,6 @@ def main():
         logger.info("Using in-memory Qdrant for HF Spaces deployment")
     else:
         logger.info("🏠 Running in local environment")
-        os.environ.setdefault("QDRANT_HOST", "localhost")
-        os.environ.setdefault("QDRANT_PORT", "6333")
-
-    os.environ.setdefault("QDRANT_TIMEOUT", "30")
 
     try:
         logger.info("Starting FastAPI backend thread...")

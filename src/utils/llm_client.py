@@ -60,4 +60,8 @@ Answer:"""
                 temperature=self.temperature
             )
         )
-        return response.text.strip()
+        try:
+            return response.text.strip()
+        except:
+            # Handle the case where response.text is not available (e.g., blocked for safety)
+            return "I'm unable to generate a response for this query. Please try rephrasing your question."
