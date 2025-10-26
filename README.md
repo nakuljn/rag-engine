@@ -64,14 +64,15 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 }
 ```
 
-## Design Decisions, Trade-offs & Testing
+## Design Decisions and Tradeoffs
 
-**Modular Architecture** — The system is split into independent layers (FastAPI, Qdrant, Reranker, Critic) to ensure clean separation of concerns and easy scalability.
-**Reranker Integration** — A lightweight cross-encoder (MS MARCO MiniLM) was chosen for better precision without adding GPU dependency.
-**Critic Head** — Implemented as a secondary reasoning model that validates and enriches answers post-generation.
-**Feedback Learning System** — Added user-based rating mechanism (👍/👎) to simulate RLHF-style reinforcement on document retrieval quality.
-**Structured Output Schema** — JSON schema ensures consistency for future integrations and automated evaluations.
-**Gradio UI** — Selected over traditional web frameworks to rapidly prototype a polished frontend in limited time.
+1. **Modular Architecture** — The system is split into independent layers (FastAPI, Qdrant, Reranker, Critic) to ensure clean separation of concerns and easy scalability.
+2. **Qdrant Selection** — Chosen over Pinecone and ChromaDB for its open-source flexibility, production-grade performance, and seamless local + cloud deployment options.
+3. **Reranker Integration** — A lightweight cross-encoder (MS MARCO MiniLM) was chosen for better precision without adding GPU dependency.
+4. **Critic Head** — Implemented as a secondary reasoning model that validates and enriches answers post-generation.
+5. **Feedback Learning System** — Added user-based rating mechanism (👍/👎) to simulate RLHF-style reinforcement on document retrieval quality.
+6. **Structured Output Schema** — JSON schema ensures consistency for future integrations and automated evaluations.
+7. **Gradio UI** — Selected over traditional web frameworks to rapidly prototype a polished frontend in limited time.
 
 ---
 
