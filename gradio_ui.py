@@ -360,12 +360,15 @@ class RAGGradioUI:
 
         history.append([message, ""])
 
-        response = api_client.query_collection(collection_name, message.strip(), enable_critic)
+        # Auto-disable critic if structured output is OFF
+        actual_enable_critic = enable_critic and structured_output
+
+        response = api_client.query_collection(collection_name, message.strip(), actual_enable_critic)
 
         if response["success"]:
             data = response.get("data", {})
             if structured_output:
-                if not enable_critic and "critic" in data:
+                if not actual_enable_critic and "critic" in data:
                     data_copy = data.copy()
                     data_copy.pop("critic", None)
                     history[-1][1] = self._format_structured_response(data_copy)
@@ -381,6 +384,12 @@ class RAGGradioUI:
 
     def clear_chat(self) -> List:
         return []
+
+    def update_critic_toggle_visibility(self, structured_output: bool) -> gr.Checkbox:
+        if structured_output:
+            return gr.Checkbox(visible=True, value=True, interactive=True)
+        else:
+            return gr.Checkbox(visible=False, value=False, interactive=False)
 
     def create_interface(self) -> gr.Blocks:
         with gr.Blocks(css=custom_css, title="RAG Engine", theme=gr.themes.Default()) as demo:
@@ -534,6 +543,7 @@ class RAGGradioUI:
                             critic_toggle = gr.Checkbox(
                                 label="Enable Critic Evaluation",
                                 value=True,
+                                visible=True,
                                 info="AI evaluates answer quality and suggests improvements"
                             )
 
@@ -602,6 +612,13 @@ class RAGGradioUI:
             clear_chat_btn.click(
                 fn=self.clear_chat,
                 outputs=[chatbot],
+                queue=False
+            )
+
+            structured_output_toggle.change(
+                fn=self.update_critic_toggle_visibility,
+                inputs=[structured_output_toggle],
+                outputs=[critic_toggle],
                 queue=False
             )
 
