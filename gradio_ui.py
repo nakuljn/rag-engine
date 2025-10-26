@@ -1,5 +1,6 @@
 import gradio as gr
 import pandas as pd
+import json
 from typing import List, Dict, Any, Optional, Tuple
 from api_client import api_client
 import logging
@@ -116,6 +117,83 @@ class RAGGradioUI:
             return None
         return choice
 
+    def _format_structured_response(self, response_data: Dict[str, Any]) -> str:
+        formatted_json = json.dumps(response_data, indent=2, ensure_ascii=False)
+        return f"```json\n{formatted_json}\n```"
+
+    def _get_file_ids_from_choices(self, choices: List[str]) -> List[str]:
+        file_ids = []
+        for choice in choices:
+            if not choice or choice == "No files available":
+                continue
+            for file in self.current_files:
+                if choice.startswith(file['filename']):
+                    file_ids.append(file['file_id'])
+                    break
+        return file_ids
+
+    def _format_multi_operation_response(self, responses: List[Dict], operation: str) -> str:
+        if not responses:
+            return f"❌ No {operation} operations performed"
+
+        success_count = sum(1 for r in responses if r.get("status_code") == 200)
+        total_count = len(responses)
+        failed_count = total_count - success_count
+
+        if failed_count == 0:
+            return f"✅ {success_count} file(s) {operation}ed successfully"
+        elif success_count == 0:
+            return f"❌ All {total_count} file(s) failed to {operation}"
+        else:
+            return f"⚠️ {success_count} {operation}ed, {failed_count} failed"
+
+    def _translate_error_message(self, backend_message: str, operation: str) -> str:
+        # Mapping backend errors to user-friendly messages
+        error_mappings = {
+            # Link operation errors
+            "File not found": "File missing",
+            "File already linked, unlink first": "Already linked",
+            "Could not read file content": "File unreadable",
+            "Failed to generate embedding": "Processing failed",
+            "Failed to link content to collection": "Database error",
+
+            # Unlink operation errors
+            "File not found in collection": "Not linked",
+            "Failed to unlink content from collection": "Database error",
+        }
+
+        # Check for exact matches first
+        if backend_message in error_mappings:
+            return error_mappings[backend_message]
+
+        # Check for partial matches (for "Internal error: ..." messages)
+        if backend_message.startswith("Internal error:"):
+            return "System error"
+
+        # Default fallback
+        return "Operation failed"
+
+    def _format_file_status_list(self, responses: List[Dict], operation: str) -> str:
+        if not responses:
+            return f"❌ No {operation} operations performed"
+
+        status_lines = []
+        for response in responses:
+            filename = response.get("name", "unknown_file")
+            status_code = response.get("status_code", 500)
+
+            if status_code == 200:
+                if operation == "link":
+                    status_lines.append(f"{filename} ✅ LINKED")
+                else:  # unlink
+                    status_lines.append(f"{filename} ❌ UNLINKED")
+            else:
+                backend_message = response.get("message", "Failed")
+                user_friendly_message = self._translate_error_message(backend_message, operation)
+                status_lines.append(f"{filename} ❌ {user_friendly_message.upper()}")
+
+        return "\n".join(status_lines)
+
     def upload_file(self, file) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown]:
         if file is None:
             return "⚠️ Please select a file to upload", self._update_file_list(), gr.Dropdown(choices=self._get_file_choices()), gr.Dropdown(choices=self._get_file_choices())
@@ -128,12 +206,12 @@ class RAGGradioUI:
             updated_df = self._update_file_list()
             updated_choices = self._get_file_choices()
 
-            return self._format_response(response), updated_df, gr.Dropdown(choices=updated_choices, value=None), gr.Dropdown(choices=updated_choices, value=None)
+            return self._format_response(response), updated_df, gr.Dropdown(choices=updated_choices, value=None), gr.Dropdown(choices=updated_choices, value=None, multiselect=True)
 
         except Exception as e:
             logger.error(f"File upload error: {e}")
             choices = self._get_file_choices()
-            return f"❌ Upload failed: {str(e)}", self._update_file_list(), gr.Dropdown(choices=choices), gr.Dropdown(choices=choices)
+            return f"❌ Upload failed: {str(e)}", self._update_file_list(), gr.Dropdown(choices=choices), gr.Dropdown(choices=choices, multiselect=True)
 
 
     def delete_file(self, file_choice: str) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown]:
@@ -141,14 +219,14 @@ class RAGGradioUI:
 
         if not file_id:
             choices = self._get_file_choices()
-            return "⚠️ Please select a file to delete", self._update_file_list(), gr.Dropdown(choices=choices), gr.Dropdown(choices=choices)
+            return "⚠️ Please select a file to delete", self._update_file_list(), gr.Dropdown(choices=choices), gr.Dropdown(choices=choices, multiselect=True)
 
         response = api_client.delete_file(file_id)
 
         updated_df = self._update_file_list()
         updated_choices = self._get_file_choices()
 
-        return self._format_response(response), updated_df, gr.Dropdown(choices=updated_choices, value=None), gr.Dropdown(choices=updated_choices, value=None)
+        return self._format_response(response), updated_df, gr.Dropdown(choices=updated_choices, value=None), gr.Dropdown(choices=updated_choices, value=None, multiselect=True)
 
 
     def refresh_files(self) -> Tuple[pd.DataFrame, gr.Dropdown]:
@@ -156,18 +234,19 @@ class RAGGradioUI:
         updated_choices = self._get_file_choices()
         return updated_df, gr.Dropdown(choices=updated_choices, value=None)
 
-    def refresh_collections(self) -> Tuple[pd.DataFrame, gr.Dropdown, gr.Dropdown]:
+    def refresh_collections(self) -> Tuple[pd.DataFrame, gr.Dropdown, gr.Dropdown, gr.Dropdown]:
         updated_df = self._update_collection_list()
         updated_choices = self._get_collection_choices()
         return (updated_df,
                 gr.Dropdown(choices=updated_choices, value=None),
+                gr.Dropdown(choices=updated_choices, value=None),
                 gr.Dropdown(choices=updated_choices, value=None))
 
-    def create_collection(self, collection_name: str) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown]:
+    def create_collection(self, collection_name: str) -> Tuple[str, pd.DataFrame, gr.Dropdown, gr.Dropdown, gr.Dropdown]:
         if not collection_name.strip():
             choices = self._get_collection_choices()
             return ("⚠️ Please enter a collection name", self._update_collection_list(),
-                    gr.Dropdown(choices=choices), gr.Dropdown(choices=choices))
+                    gr.Dropdown(choices=choices), gr.Dropdown(choices=choices), gr.Dropdown(choices=choices))
 
         response = api_client.create_collection(collection_name.strip())
         updated_df = self._update_collection_list()
@@ -175,51 +254,68 @@ class RAGGradioUI:
 
         return (self._format_response(response), updated_df,
                 gr.Dropdown(choices=updated_choices, value=None),
+                gr.Dropdown(choices=updated_choices, value=None),
                 gr.Dropdown(choices=updated_choices, value=None))
 
-    def link_content(self, collection_choice: str, file_choice: str) -> str:
+    def link_content(self, collection_choice: str, file_choices: List[str]) -> str:
         collection_name = self._get_collection_from_choice(collection_choice)
         if not collection_name:
             return "⚠️ Please select a collection"
 
-        file_id = self._get_file_id_from_choice(file_choice)
-        if not file_id:
-            return "⚠️ Please select a file to link"
+        if not file_choices:
+            return "⚠️ Please select files to link"
 
-        # Find the file details from current_files
-        selected_file = None
-        for file in self.current_files:
-            if file['file_id'] == file_id:
-                selected_file = file
-                break
+        file_ids = self._get_file_ids_from_choices(file_choices)
+        if not file_ids:
+            return "⚠️ Selected files not found"
 
-        if not selected_file:
-            return "⚠️ File not found in current files list"
+        # Create files array for API
+        files_to_link = []
+        for file_id in file_ids:
+            # Find the file details from current_files
+            selected_file = None
+            for file in self.current_files:
+                if file['file_id'] == file_id:
+                    selected_file = file
+                    break
 
-        # Create the new API format - array of file objects
-        files_to_link = [{
-            "name": selected_file['filename'],
-            "id": file_id,
-            "field": "text"  # Default field type
-        }]
+            if selected_file:
+                files_to_link.append({
+                    "name": selected_file['filename'],
+                    "file_id": file_id,
+                    "type": "text"
+                })
+
+        if not files_to_link:
+            return "⚠️ No valid files to link"
 
         response = api_client.link_content(collection_name, files_to_link)
 
         # Handle 207 multi-status response
         if response["success"] and response["status_code"] == 207:
             results = response.get("data", [])
-            if results:
-                result = results[0]  # Get first (and only) result
-                status_code = result.get("status_code", 500)
-                indexing_status = result.get("indexing_status", "UNKNOWN")
-                message = result.get("message", "No message")
+            return self._format_file_status_list(results, "link")
+        else:
+            return self._format_response(response)
 
-                if status_code == 200:
-                    return f"✅ {indexing_status}: {message}"
-                else:
-                    return f"❌ {indexing_status}: {message}"
-            else:
-                return "❌ No response data received"
+    def unlink_content(self, collection_choice: str, file_choices: List[str]) -> str:
+        collection_name = self._get_collection_from_choice(collection_choice)
+        if not collection_name:
+            return "⚠️ Please select a collection"
+
+        if not file_choices:
+            return "⚠️ Please select files to unlink"
+
+        file_ids = self._get_file_ids_from_choices(file_choices)
+        if not file_ids:
+            return "⚠️ Selected files not found"
+
+        response = api_client.unlink_content(collection_name, file_ids)
+
+        # Handle 207 multi-status response
+        if response["success"] and response["status_code"] == 207:
+            results = response.get("data", [])
+            return self._format_file_status_list(results, "unlink")
         else:
             return self._format_response(response)
 
@@ -250,7 +346,7 @@ class RAGGradioUI:
         else:
             return self._format_response(response)
 
-    def chat_with_collection(self, collection_choice: str, message: str, history: List) -> Tuple[List, str]:
+    def chat_with_collection(self, collection_choice: str, message: str, history: List, structured_output: bool = False) -> Tuple[List, str]:
         if history is None:
             history = []
 
@@ -268,8 +364,11 @@ class RAGGradioUI:
 
         if response["success"]:
             data = response.get("data", {})
-            answer = data.get("answer", "No answer")
-            history[-1][1] = answer
+            if structured_output:
+                history[-1][1] = self._format_structured_response(data)
+            else:
+                answer = data.get("answer", "No answer")
+                history[-1][1] = answer
         else:
             history[-1][1] = f"❌ {response.get('error', 'Unknown error')}"
 
@@ -347,64 +446,99 @@ class RAGGradioUI:
                             )
 
                     with gr.Row():
-                        with gr.Column():
+                        with gr.Column(scale=1):
                             gr.Markdown("### Link Content")
                             link_collection_dropdown = gr.Dropdown(
                                 label="Select Collection",
                                 choices=[],
                                 interactive=True
                             )
-                            link_file_selector = gr.Dropdown(
-                                label="Select File to Link",
+                            link_file_dropdown = gr.Dropdown(
+                                label="Select Files to Link",
+                                choices=[],
+                                multiselect=True,
+                                interactive=True
+                            )
+                            link_btn = gr.Button("🔗 Link Content", variant="primary", size="sm")
+                            link_status = gr.Textbox(
+                                label="Link Status",
+                                interactive=False,
+                                lines=2,
+                                placeholder="Ready to link files..."
+                            )
+
+                        with gr.Column(scale=1):
+                            gr.Markdown("### Unlink Content")
+                            unlink_collection_dropdown = gr.Dropdown(
+                                label="Select Collection",
                                 choices=[],
                                 interactive=True
                             )
-                            link_btn = gr.Button("🔗 Link Content", variant="secondary", size="sm")
-                            link_status = gr.Textbox(label="Link Status", interactive=False, lines=1)
+                            unlink_file_dropdown = gr.Dropdown(
+                                label="Select Files to Unlink",
+                                choices=[],
+                                multiselect=True,
+                                interactive=True
+                            )
+                            unlink_btn = gr.Button("🗑️ Unlink Content", variant="stop", size="sm")
+                            unlink_status = gr.Textbox(
+                                label="Unlink Status",
+                                interactive=False,
+                                lines=2,
+                                placeholder="Ready to unlink files..."
+                            )
 
                 # Tab 3: Chatbot
                 with gr.Tab("💬 Chatbot"):
                     with gr.Row():
-                        with gr.Column():
+                        # Left column - Main chat interface
+                        with gr.Column(scale=3):
                             gr.Markdown("### RAG-based Chat")
+                            chatbot = gr.Chatbot(
+                                label="Chat with your documents",
+                                height=500,
+                                show_label=True,
+                                value=[]
+                            )
+
+                            with gr.Row():
+                                with gr.Column(scale=4):
+                                    chat_input = gr.Textbox(
+                                        label="Message",
+                                        placeholder="Ask a question about your documents...",
+                                        lines=1,
+                                        max_lines=3
+                                    )
+                                with gr.Column(scale=1):
+                                    chat_send_btn = gr.Button("Send", variant="primary", size="sm")
+                                    clear_chat_btn = gr.Button("Clear Chat", variant="secondary", size="sm")
+
+                        # Right column - Settings panel
+                        with gr.Column(scale=1):
+                            gr.Markdown("### Chat Settings")
                             chat_collection_dropdown = gr.Dropdown(
                                 label="Select Collection",
                                 choices=[],
                                 interactive=True
                             )
-
-                    with gr.Row():
-                        chatbot = gr.Chatbot(
-                            label="Chat with your documents",
-                            height=400,
-                            show_label=True,
-                            value=[]
-                        )
-
-                    with gr.Row():
-                        with gr.Column(scale=4):
-                            chat_input = gr.Textbox(
-                                label="Message",
-                                placeholder="Ask a question about your documents...",
-                                lines=1,
-                                max_lines=3
+                            structured_output_toggle = gr.Checkbox(
+                                label="Show Structured Output",
+                                value=False,
+                                info="Display full JSON response with confidence, chunks, etc."
                             )
-                        with gr.Column(scale=1):
-                            chat_send_btn = gr.Button("Send", variant="primary", size="sm")
-                            clear_chat_btn = gr.Button("Clear Chat", variant="secondary", size="sm")
 
             # Event handlers for File Management
             upload_btn.click(
                 fn=self.upload_file,
                 inputs=[file_upload],
-                outputs=[upload_status, files_table, file_selector, link_file_selector],
+                outputs=[upload_status, files_table, file_selector, link_file_dropdown],
                 queue=False
             )
 
             delete_btn.click(
                 fn=self.delete_file,
                 inputs=[file_selector],
-                outputs=[upload_status, files_table, file_selector, link_file_selector],
+                outputs=[upload_status, files_table, file_selector, link_file_dropdown],
                 queue=False
             )
 
@@ -417,33 +551,40 @@ class RAGGradioUI:
             create_collection_btn.click(
                 fn=self.create_collection,
                 inputs=[collection_name],
-                outputs=[collection_status, collections_table, link_collection_dropdown, chat_collection_dropdown],
+                outputs=[collection_status, collections_table, link_collection_dropdown, unlink_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 
             link_btn.click(
                 fn=self.link_content,
-                inputs=[link_collection_dropdown, link_file_selector],
+                inputs=[link_collection_dropdown, link_file_dropdown],
                 outputs=[link_status],
+                queue=False
+            )
+
+            unlink_btn.click(
+                fn=self.unlink_content,
+                inputs=[unlink_collection_dropdown, unlink_file_dropdown],
+                outputs=[unlink_status],
                 queue=False
             )
 
             refresh_collections_btn.click(
                 fn=self.refresh_collections,
-                outputs=[collections_table, link_collection_dropdown, chat_collection_dropdown],
+                outputs=[collections_table, link_collection_dropdown, unlink_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 
             chat_send_btn.click(
                 fn=self.chat_with_collection,
-                inputs=[chat_collection_dropdown, chat_input],
+                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle],
                 outputs=[chatbot, chat_input],
                 queue=False
             )
 
             chat_input.submit(
                 fn=self.chat_with_collection,
-                inputs=[chat_collection_dropdown, chat_input],
+                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle],
                 outputs=[chatbot, chat_input],
                 queue=False
             )
@@ -457,15 +598,16 @@ class RAGGradioUI:
             # Initialize with current data on load
             def initialize_data():
                 files_df, file_choices = self.refresh_files()
-                collections_df, link_dropdown, chat_dropdown = self.refresh_collections()
+                collections_df, link_dropdown, unlink_dropdown, chat_dropdown = self.refresh_collections()
                 return (files_df, file_choices, collections_df,
-                        gr.Dropdown(choices=self._get_file_choices()),
-                        link_dropdown, chat_dropdown)
+                        gr.Dropdown(choices=self._get_file_choices(), multiselect=True),
+                        gr.Dropdown(choices=self._get_file_choices(), multiselect=True),
+                        link_dropdown, unlink_dropdown, chat_dropdown)
 
             demo.load(
                 fn=initialize_data,
-                outputs=[files_table, file_selector, collections_table, link_file_selector,
-                        link_collection_dropdown, chat_collection_dropdown],
+                outputs=[files_table, file_selector, collections_table, link_file_dropdown,
+                        unlink_file_dropdown, link_collection_dropdown, unlink_collection_dropdown, chat_collection_dropdown],
                 queue=False
             )
 

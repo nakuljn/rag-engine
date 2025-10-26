@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from typing import List
 from api.api_constants import *
 from models.api_models import CreateCollectionRequest, ApiResponse, ApiResponseWithBody, LinkContentItem, LinkContentResponse, QueryRequest, QueryResponse, UnlinkContentResponse
@@ -29,11 +29,13 @@ def delete_collection(collection_name: str) -> ApiResponse:
 
 
 @router.post("/{collection_name}" + LINK_CONTENT)
-def link_content(collection_name: str, files: List[LinkContentItem]) -> List[LinkContentResponse]:
+def link_content(collection_name: str, files: List[LinkContentItem], response: Response) -> List[LinkContentResponse]:
+    response.status_code = 207
     return collection_service.link_content(collection_name, files)
 
 @router.post("/{collection_name}" + UNLINK_CONTENT)
-def unlink_content(collection_name: str, file_ids: List[str]) -> List[UnlinkContentResponse]:
+def unlink_content(collection_name: str, file_ids: List[str], response: Response) -> List[UnlinkContentResponse]:
+    response.status_code = 207
     return collection_service.unlink_content(collection_name, file_ids)
 
 @router.post("/{collection_name}" + QUERY_COLLECTION)

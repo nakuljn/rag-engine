@@ -6,11 +6,18 @@ from config import Config
 
 class QdrantRepository:
     def __init__(self):
-        self.client = QdrantClient(
-            host=Config.database.QDRANT_HOST,
-            port=Config.database.QDRANT_PORT,
-            timeout=Config.database.QDRANT_TIMEOUT
-        )
+        if Config.database.QDRANT_API_KEY:
+            self.client = QdrantClient(
+                url=f"{Config.database.QDRANT_HOST}:{Config.database.QDRANT_PORT}",
+                api_key=Config.database.QDRANT_API_KEY,
+                timeout=Config.database.QDRANT_TIMEOUT
+            )
+        else:
+            self.client = QdrantClient(
+                host=Config.database.QDRANT_HOST,
+                port=Config.database.QDRANT_PORT,
+                timeout=Config.database.QDRANT_TIMEOUT
+            )
 
     def collection_exists(self, collection_name: str) -> bool:
         try:
