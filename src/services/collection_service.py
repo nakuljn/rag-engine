@@ -178,12 +178,11 @@ class CollectionService:
 
         return responses
 
-    def query_collection(self, collection_name: str, query_text: str, limit: int = 5) -> QueryResponse:
+    def query_collection(self, collection_name: str, query_text: str, enable_critic: bool = True, limit: int = 5) -> QueryResponse:
         if not self._validate_collection_exists(collection_name):
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info=f"Collection '{collection_name}' does not exist",
                 is_relevant=False,
                 chunks=[]
             )
@@ -192,10 +191,9 @@ class CollectionService:
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info="Empty query provided",
                 is_relevant=False,
                 chunks=[]
             )
 
-        return self.query_service.search(collection_name, query_text, limit)
+        return self.query_service.search(collection_name, query_text, limit, enable_critic)
 

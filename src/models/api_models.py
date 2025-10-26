@@ -42,15 +42,21 @@ class ChunkConfig(BaseModel):
     source: str
     text: str
 
+class CriticEvaluation(BaseModel):
+    confidence: float
+    missing_info: str
+    enrichment_suggestions: List[str]
+
 class QueryRequest(BaseModel):
     query: str
+    enable_critic: bool = True
 
 class QueryResponse(BaseModel):
     answer: str
     confidence: float
-    missing_info: str
     is_relevant: bool
     chunks: List[ChunkConfig]
+    critic: Optional[CriticEvaluation] = None
 
 class FileUploadResponse(BaseModel):
     status: str
