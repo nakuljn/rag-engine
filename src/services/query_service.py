@@ -3,6 +3,7 @@ from repositories.qdrant_repository import QdrantRepository
 from utils.embedding_client import EmbeddingClient
 from utils.llm_client import LlmClient
 from models.api_models import QueryResponse, ChunkConfig
+from core.reranker import reranker
 
 class QueryService:
     def __init__(self):
@@ -30,7 +31,8 @@ class QueryService:
             source = payload.get("document_id", "unknown")
 
             if text and self._is_valid_text(text):
-                chunks.append(ChunkConfig(source=source, text=text))
+                trimmed_text = text[:150] + "..." if len(text) > 150 else text
+                chunks.append(ChunkConfig(source=source, text=trimmed_text))
 
         return chunks[:3]
 
@@ -78,6 +80,11 @@ class QueryService:
         try:
             query_vector = self.embedding_client.generate_single_embedding(query_text)
             results = self.qdrant_repo.query_collection(collection_name, query_vector, limit)
+
+            # Apply reranking if available and enabled
+            if reranker.is_available() and results:
+                results = reranker.rerank(query_text, results)
+
             return self._create_query_response(results, query_text)
         except Exception as e:
             return QueryResponse(

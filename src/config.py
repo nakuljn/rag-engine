@@ -37,8 +37,14 @@ class AppConfig:
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", "uploads")
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "100"))
 
+class RerankingConfig:
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "5"))
+    RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+
 class Config:
     database = DatabaseConfig()
     embedding = EmbeddingConfig()
     llm = LlmConfig()
     app = AppConfig()
+    reranking = RerankingConfig()
