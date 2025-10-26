@@ -81,7 +81,6 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 | Limitation                        | Reason                                       |
 | --------------------------------- | -------------------------------------------- |
 | **High Query Latency (~20–30s)**  | Sequential model loading and CPU inference   |
-| **In-memory Qdrant on HF Spaces** | No persistence between restarts              |
 | **Limited Auto-Enrichment**       | Placeholder logic (suggestive, not fetching) |
 | **Single-threaded LLM calls**     | Slower for long or multi-query workflows     |
 
@@ -90,12 +89,8 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 ## Next Steps
 
 1. **Optimize Latency** — Move to async or batched inference with GPU backend.
-2. **Persistent Vector DB** — Use managed Qdrant or Pinecone cloud instance.
 3. **Expand Enrichment Engine** — Integrate Wikipedia / ArXiv fetcher for missing info.
-4. **Add Feedback Loop** — Allow user rating to fine-tune critic.
 5. **Auto-Enrichment** — Fetch missing data from trusted external sources for validation.
-6. **User Feedback Integration** — Allow users to rate answer quality and use this signal to improve model reliability.
-7. **Deploy Production-Grade Stack** — Split frontend/backend, add auth & caching.
 
 ---
 
