@@ -118,57 +118,8 @@ class RAGGradioUI:
         return choice
 
     def _format_structured_response(self, response_data: Dict[str, Any]) -> str:
-        try:
-            # Create a comprehensive structured view
-            answer = response_data.get("answer", "No answer available")
-            confidence = response_data.get("confidence", 0.0)
-            is_relevant = response_data.get("is_relevant", False)
-            missing_info = response_data.get("missing_info", "")
-            chunks = response_data.get("chunks", [])
-
-            # Build structured output with clear sections
-            structured_output = {
-                "response": {
-                    "answer": answer,
-                    "confidence_score": round(confidence, 3),
-                    "is_relevant": is_relevant,
-                    "additional_info": missing_info if missing_info else "None"
-                },
-                "source_data": {
-                    "chunks_found": len(chunks),
-                    "source_documents": [chunk.get("source", "unknown") for chunk in chunks] if chunks else []
-                }
-            }
-
-            # Add chunk details if available
-            if chunks:
-                structured_output["chunks"] = []
-                for i, chunk in enumerate(chunks, 1):
-                    chunk_info = {
-                        f"chunk_{i}": {
-                            "source": chunk.get("source", "unknown"),
-                            "text_preview": chunk.get("text", "")[:200] + "..." if len(chunk.get("text", "")) > 200 else chunk.get("text", "")
-                        }
-                    }
-                    structured_output["chunks"].append(chunk_info)
-
-            # Check if there were any issues with the answer generation
-            if "error" in answer.lower() or "unable" in answer.lower() or "apologize" in answer.lower():
-                structured_output["status"] = "partial_response"
-                structured_output["note"] = "The AI response encountered issues, but source data is still available above."
-            else:
-                structured_output["status"] = "complete_response"
-
-            formatted_json = json.dumps(structured_output, indent=2, ensure_ascii=False)
-            return f"```json\n{formatted_json}\n```"
-
-        except Exception as e:
-            # Fallback to simple JSON if there's any issue with formatting
-            try:
-                simple_json = json.dumps(response_data, indent=2, ensure_ascii=False)
-                return f"```json\n{simple_json}\n```\n\n⚠️ Note: There was an issue formatting the structured response, showing raw data above."
-            except:
-                return f"**Error formatting response data:** {str(e)}\n\n**Raw data:** {str(response_data)}"
+        formatted_json = json.dumps(response_data, indent=2, ensure_ascii=False)
+        return f"```json\n{formatted_json}\n```"
 
     def _get_file_ids_from_choices(self, choices: List[str]) -> List[str]:
         file_ids = []
