@@ -1,10 +1,10 @@
-# 🚀 AI-Powered Knowledge Base Search & Enrichment
+# AI-Powered Knowledge Base Search & Enrichment
 
 A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users upload documents, search them in natural language, get AI-generated answers, and receive smart suggestions when information is incomplete.
 
 ---
 
-## 🧱 Architecture
+## Architecture
 
 ```
 ┌────────────┐     ┌────────────┐     ┌────────────┐     ┌────────────┐
@@ -21,7 +21,7 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 
 ---
 
-## ⚙️ Functionality
+## Functionality
 
 | Feature                | Description                                         |
 | ---------------------- | --------------------------------------------------- |
@@ -35,7 +35,7 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 
 ---
 
-## 💡 How It Works
+## How It Works
 
 1. **Upload & Index** — Files are embedded using **BGE-large-en-v1.5** and stored in **Qdrant**.
 2. **Query** — A user asks a natural-language question.
@@ -46,7 +46,7 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 
 ---
 
-## 🧠 Example Output
+## Example Output
 
 ```json
 {
@@ -66,7 +66,7 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 
 ---
 
-## 🧩 Limitations
+## Limitations
 
 | Limitation                        | Reason                                       |
 | --------------------------------- | -------------------------------------------- |
@@ -77,25 +77,23 @@ A lightweight **Retrieval-Augmented Generation (RAG)** system that lets users up
 
 ---
 
-## 🚀 Next Steps
+## Next Steps
 
 1. **Optimize Latency** — Move to async or batched inference with GPU backend.
 2. **Persistent Vector DB** — Use managed Qdrant or Pinecone cloud instance.
 3. **Expand Enrichment Engine** — Integrate Wikipedia / ArXiv fetcher for missing info.
 4. **Add Feedback Loop** — Allow user rating to fine-tune critic.
-5. **Deploy Production-Grade Stack** — Split frontend/backend, add auth & caching.
+5. **Auto-Enrichment** — Fetch missing data from trusted external sources for validation.
+6. **User Feedback Integration** — Allow users to rate answer quality and use this signal to improve model reliability.
+7. **Deploy Production-Grade Stack** — Split frontend/backend, add auth & caching.
 
 ---
 
-## 🏁 Summary
+## Summary
 
 ✅ **End-to-End RAG Pipeline**
 ✅ **Structured AI Responses** (Answer + Confidence + Critic)
 ✅ **Smart Completeness Detection**
 ✅ **Knowledge Enrichment Suggestions**
-✅ **Deployed on Hugging Face with Functional UI**
 
 ---
-
-**Built by Nakul Jain**
-*Demonstrating applied AI systems design, completeness eva
