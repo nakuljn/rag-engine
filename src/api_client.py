@@ -86,8 +86,8 @@ class RAGAPIClient:
     def unlink_content(self, collection_name: str, file_ids: List[str]) -> Dict[str, Any]:
         return self._make_request("POST", f"/{collection_name}/unlink-content", json=file_ids)
 
-    def query_collection(self, collection_name: str, query: str = "") -> Dict[str, Any]:
-        data = {"query": query} if query else {}
+    def query_collection(self, collection_name: str, query: str = "", enable_critic: bool = True) -> Dict[str, Any]:
+        data = {"query": query, "enable_critic": enable_critic}
         return self._make_request("POST", f"/{collection_name}/query", json=data)
 
 

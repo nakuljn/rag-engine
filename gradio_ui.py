@@ -346,7 +346,7 @@ class RAGGradioUI:
         else:
             return self._format_response(response)
 
-    def chat_with_collection(self, collection_choice: str, message: str, history: List, structured_output: bool = False) -> Tuple[List, str]:
+    def chat_with_collection(self, collection_choice: str, message: str, history: List, structured_output: bool = False, enable_critic: bool = True) -> Tuple[List, str]:
         if history is None:
             history = []
 
@@ -360,12 +360,17 @@ class RAGGradioUI:
 
         history.append([message, ""])
 
-        response = api_client.query_collection(collection_name, message.strip())
+        response = api_client.query_collection(collection_name, message.strip(), enable_critic)
 
         if response["success"]:
             data = response.get("data", {})
             if structured_output:
-                history[-1][1] = self._format_structured_response(data)
+                if not enable_critic and "critic" in data:
+                    data_copy = data.copy()
+                    data_copy.pop("critic", None)
+                    history[-1][1] = self._format_structured_response(data_copy)
+                else:
+                    history[-1][1] = self._format_structured_response(data)
             else:
                 answer = data.get("answer", "No answer")
                 history[-1][1] = answer
@@ -523,8 +528,13 @@ class RAGGradioUI:
                             )
                             structured_output_toggle = gr.Checkbox(
                                 label="Show Structured Output",
-                                value=False,
+                                value=True,
                                 info="Display full JSON response with confidence, chunks, etc."
+                            )
+                            critic_toggle = gr.Checkbox(
+                                label="Enable Critic Evaluation",
+                                value=True,
+                                info="AI evaluates answer quality and suggests improvements"
                             )
 
             # Event handlers for File Management
@@ -577,14 +587,14 @@ class RAGGradioUI:
 
             chat_send_btn.click(
                 fn=self.chat_with_collection,
-                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle],
+                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle, critic_toggle],
                 outputs=[chatbot, chat_input],
                 queue=False
             )
 
             chat_input.submit(
                 fn=self.chat_with_collection,
-                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle],
+                inputs=[chat_collection_dropdown, chat_input, chatbot, structured_output_toggle, critic_toggle],
                 outputs=[chatbot, chat_input],
                 queue=False
             )

@@ -2,8 +2,9 @@ from typing import List, Dict, Any
 from repositories.qdrant_repository import QdrantRepository
 from utils.embedding_client import EmbeddingClient
 from utils.llm_client import LlmClient
-from models.api_models import QueryResponse, ChunkConfig
+from models.api_models import QueryResponse, ChunkConfig, CriticEvaluation
 from core.reranker import reranker
+from core.critic import critic
 
 class QueryService:
     def __init__(self):
@@ -39,19 +40,32 @@ class QueryService:
 
         return chunks[:3]
 
+    def _extract_full_texts(self, results: List[Dict]) -> List[str]:
+        full_texts = []
+        seen_texts = set()
+
+        for result in results:
+            payload = result.get("payload", {})
+            text = payload.get("text", "")
+
+            if text and self._is_valid_text(text) and text not in seen_texts:
+                seen_texts.add(text)
+                full_texts.append(text)
+
+        return full_texts[:3]
+
     def _calculate_confidence(self, results: List[Dict]) -> float:
         if not results:
             return 0.0
         return max(result.get("score", 0) for result in results)
 
-    def _create_query_response(self, results: List[Dict], query: str) -> QueryResponse:
+    def _create_query_response(self, results: List[Dict], query: str, enable_critic: bool = True) -> QueryResponse:
         relevant_results = self._filter_relevant_results(results)
 
         if not relevant_results:
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info="No relevant information found for the given query",
                 is_relevant=False,
                 chunks=[]
             )
@@ -62,24 +76,29 @@ class QueryService:
             return QueryResponse(
                 answer="Error: Stored content is corrupted or unreadable",
                 confidence=0.0,
-                missing_info="Relink your files to fix corrupted content",
                 is_relevant=False,
                 chunks=[]
             )
 
         chunk_texts = [chunk.text for chunk in chunks]
+        full_chunk_texts = self._extract_full_texts(relevant_results)
         answer = self.llm_client.generate_answer(query, chunk_texts)
         confidence = self._calculate_confidence(relevant_results)
+
+        critic_result = None
+        if enable_critic and critic.is_available():
+            if critic_evaluation := critic.evaluate(query, full_chunk_texts, answer):
+                critic_result = CriticEvaluation(**critic_evaluation)
 
         return QueryResponse(
             answer=answer,
             confidence=confidence,
-            missing_info="",
             is_relevant=True,
-            chunks=chunks
+            chunks=chunks,
+            critic=critic_result
         )
 
-    def search(self, collection_name: str, query_text: str, limit: int = 10) -> QueryResponse:
+    def search(self, collection_name: str, query_text: str, limit: int = 10, enable_critic: bool = True) -> QueryResponse:
         try:
             query_vector = self.embedding_client.generate_single_embedding(query_text)
             results = self.qdrant_repo.query_collection(collection_name, query_vector, limit)
@@ -88,12 +107,11 @@ class QueryService:
             if reranker.is_available() and results:
                 results = reranker.rerank(query_text, results)
 
-            return self._create_query_response(results, query_text)
+            return self._create_query_response(results, query_text, enable_critic)
         except Exception as e:
             return QueryResponse(
                 answer="Context not found",
                 confidence=0.0,
-                missing_info=f"Failed to search collection: {str(e)}",
                 is_relevant=False,
                 chunks=[]
             )
